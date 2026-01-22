@@ -1,0 +1,428 @@
+#![windows_subsystem = "windows"]
+
+mod account;
+mod api;
+mod auth;
+mod games;
+mod theme;
+mod ui;
+
+use eframe::egui::{self, RichText};
+use theme::Colors;
+use ui::{NexusApp, Tab};
+
+#[cfg(windows)]
+use tray_icon::{
+    menu::{Menu, MenuEvent, MenuItem, MenuId},
+    TrayIcon, TrayIconBuilder,
+};
+#[cfg(windows)]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(windows)]
+use std::sync::OnceLock;
+
+#[cfg(windows)]
+static SHOW_ID: OnceLock<MenuId> = OnceLock::new();
+#[cfg(windows)]
+static QUIT_ID: OnceLock<MenuId> = OnceLock::new();
+#[cfg(windows)]
+static MINIMIZED_TO_TRAY: AtomicBool = AtomicBool::new(false);
+
+#[cfg(windows)]
+mod win_utils {
+    use winapi::um::winuser::{FindWindowW, ShowWindow, SetForegroundWindow, SW_HIDE, SW_SHOW, SW_RESTORE};
+    use std::ptr::null_mut;
+    
+    pub fn find_window() -> *mut winapi::shared::windef::HWND__ {
+        unsafe {
+            let title: Vec<u16> = "Nexus Account Manager\0".encode_utf16().collect();
+            FindWindowW(null_mut(), title.as_ptr())
+        }
+    }
+    
+    pub fn hide_window() {
+        let hwnd = find_window();
+        if !hwnd.is_null() {
+            unsafe { ShowWindow(hwnd, SW_HIDE); }
+        }
+    }
+    
+    pub fn show_window() {
+        let hwnd = find_window();
+        if !hwnd.is_null() {
+            unsafe {
+                ShowWindow(hwnd, SW_SHOW);
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+            }
+        }
+    }
+}
+
+fn main() -> Result<(), eframe::Error> {
+    // Set up tray icon menu items
+    #[cfg(windows)]
+    let tray_menu = {
+        let menu = Menu::new();
+        let show_item = MenuItem::new("Show", true, None);
+        let quit_item = MenuItem::new("Quit", true, None);
+        SHOW_ID.set(show_item.id().clone()).ok();
+        QUIT_ID.set(quit_item.id().clone()).ok();
+        menu.append(&show_item).ok();
+        menu.append(&quit_item).ok();
+        menu
+    };
+    
+    // Spawn menu event handler thread - uses Windows API directly
+    #[cfg(windows)]
+    std::thread::spawn(|| {
+        loop {
+            if let Ok(event) = MenuEvent::receiver().recv() {
+                if let Some(show_id) = SHOW_ID.get() {
+                    if &event.id == show_id {
+                        MINIMIZED_TO_TRAY.store(false, Ordering::SeqCst);
+                        win_utils::show_window();
+                    }
+                }
+                if let Some(quit_id) = QUIT_ID.get() {
+                    if &event.id == quit_id {
+                        std::process::exit(0);
+                    }
+                }
+            }
+        }
+    });
+    
+    // Create tray icon  
+    #[cfg(windows)]
+    let _tray_icon: Option<TrayIcon> = {
+        // Load embedded icon
+        let icon_data = include_bytes!("../icon.ico");
+        let icon = load_icon_from_ico(icon_data).unwrap_or_else(|| {
+            // Fallback: create a simple colored icon
+            let width = 32u32;
+            let height = 32u32;
+            let mut rgba = vec![0u8; (width * height * 4) as usize];
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = ((y * width + x) * 4) as usize;
+                    // Blue color
+                    rgba[idx] = 59;     // R
+                    rgba[idx + 1] = 130; // G  
+                    rgba[idx + 2] = 246; // B
+                    rgba[idx + 3] = 255; // A
+                }
+            }
+            tray_icon::Icon::from_rgba(rgba, width, height).ok()
+        });
+        
+        if let Some(icon) = icon {
+            TrayIconBuilder::new()
+                .with_tooltip("Nexus Account Manager")
+                .with_icon(icon)
+                .with_menu(Box::new(tray_menu))
+                .build()
+                .ok()
+        } else {
+            None
+        }
+    };
+    
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([950.0, 700.0])
+            .with_min_inner_size([850.0, 550.0])
+            .with_title("Nexus Account Manager"),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Nexus Account Manager",
+        options,
+        Box::new(|cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+            theme::setup_dark_theme(&cc.egui_ctx);
+            Ok(Box::new(NexusApp::new()))
+        }),
+    )
+}
+
+#[cfg(windows)]
+fn load_icon_from_ico(data: &[u8]) -> Option<Option<tray_icon::Icon>> {
+    // Try to parse ICO file - simplified approach
+    // ICO format: 6 byte header, then entries
+    if data.len() < 22 {
+        return None;
+    }
+    
+    // Read number of images
+    let count = u16::from_le_bytes([data[4], data[5]]) as usize;
+    if count == 0 {
+        return None;
+    }
+    
+    // Find the largest image (or 32x32 preferably)
+    let mut best_offset = 0usize;
+    let mut best_size = 0u32;
+    let mut best_width = 0u8;
+    let mut best_height = 0u8;
+    
+    for i in 0..count {
+        let entry_offset = 6 + i * 16;
+        if entry_offset + 16 > data.len() {
+            break;
+        }
+        
+        let width = if data[entry_offset] == 0 { 256u32 } else { data[entry_offset] as u32 };
+        let height = if data[entry_offset + 1] == 0 { 256u32 } else { data[entry_offset + 1] as u32 };
+        let size = u32::from_le_bytes([
+            data[entry_offset + 8],
+            data[entry_offset + 9],
+            data[entry_offset + 10],
+            data[entry_offset + 11],
+        ]);
+        let offset = u32::from_le_bytes([
+            data[entry_offset + 12],
+            data[entry_offset + 13],
+            data[entry_offset + 14],
+            data[entry_offset + 15],
+        ]) as usize;
+        
+        // Prefer 32x32 or the largest available
+        if width == 32 && height == 32 {
+            best_offset = offset;
+            best_size = size;
+            best_width = width as u8;
+            best_height = height as u8;
+            break;
+        } else if width * height > (best_width as u32) * (best_height as u32) {
+            best_offset = offset;
+            best_size = size;
+            best_width = width as u8;
+            best_height = height as u8;
+        }
+    }
+    
+    if best_size == 0 || best_offset + best_size as usize > data.len() {
+        return None;
+    }
+    
+    let image_data = &data[best_offset..best_offset + best_size as usize];
+    
+    // Check if it's a PNG (starts with PNG magic)
+    if image_data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+        // It's a PNG, decode it
+        if let Ok(img) = image::load_from_memory(image_data) {
+            let rgba = img.to_rgba8();
+            let (w, h) = rgba.dimensions();
+            return Some(tray_icon::Icon::from_rgba(rgba.into_raw(), w, h).ok());
+        }
+    }
+    
+    // Otherwise it's a BMP, harder to decode - just return None and use fallback
+    None
+}
+
+impl eframe::App for NexusApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Sync minimized state with global flag
+        #[cfg(windows)]
+        {
+            self.minimized_to_tray = MINIMIZED_TO_TRAY.load(Ordering::SeqCst);
+        }
+        
+        // Startup
+        if !self.startup_fetch_done && !self.data.accounts.is_empty() {
+            self.startup_fetch_done = true;
+            self.fetch_presence_and_avatars();
+        }
+        
+        if !self.game_icons_loaded {
+            self.game_icons_loaded = true;
+            self.load_game_icons();
+        }
+        
+        // Periodic refresh
+        if self.last_presence_refresh.elapsed().as_secs() >= 60 {
+            self.refresh_presence_only();
+        }
+        
+        self.check_browser_login_result();
+        
+        // Drag & drop handling
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                for file in &i.raw.dropped_files {
+                    if let Some(ref bytes) = file.bytes {
+                        if let Ok(content) = String::from_utf8(bytes.to_vec()) {
+                            let trimmed = content.trim();
+                            if trimmed.contains("_|WARNING:-DO-NOT-SHARE") || trimmed.len() > 100 {
+                                self.action = ui::Action::ImportDroppedCookie(trimmed.to_string());
+                                self.drag_drop_active = false;
+                                return;
+                            }
+                        }
+                    } else if let Some(ref path) = file.path {
+                        if let Ok(content) = std::fs::read_to_string(path) {
+                            let trimmed = content.trim();
+                            if trimmed.contains("_|WARNING:-DO-NOT-SHARE") || trimmed.len() > 100 {
+                                self.action = ui::Action::ImportDroppedCookie(trimmed.to_string());
+                                self.drag_drop_active = false;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            self.drag_drop_active = i.raw.hovered_files.len() > 0;
+        });
+        
+        self.process_action();
+        
+        egui::CentralPanel::default()
+            .frame(egui::Frame::none().fill(Colors::BG_DARK).inner_margin(egui::Margin::same(20.0)))
+            .show(ctx, |ui| {
+                // Drop overlay
+                if self.drag_drop_active {
+                    let screen_rect = ui.max_rect();
+                    ui.painter().rect_filled(
+                        screen_rect,
+                        egui::Rounding::same(0.0),
+                        egui::Color32::from_rgba_unmultiplied(0, 100, 200, 100),
+                    );
+                    ui.painter().rect_stroke(
+                        screen_rect.shrink(4.0),
+                        egui::Rounding::same(12.0),
+                        egui::Stroke::new(3.0, Colors::ACCENT_BLUE),
+                    );
+                    ui.put(
+                        screen_rect,
+                        egui::Label::new(
+                            RichText::new("🍪 Drop Cookie File Here")
+                                .size(28.0)
+                                .color(egui::Color32::WHITE)
+                                .strong()
+                        ),
+                    );
+                    return;
+                }
+                
+                // Header
+                egui::Frame::none()
+                    .fill(Colors::BG_MEDIUM)
+                    .stroke(egui::Stroke::new(2.0, Colors::BORDER_DARK))
+                    .rounding(egui::Rounding::same(10.0))
+                    .inner_margin(egui::Margin::same(16.0))
+                    .outer_margin(egui::Margin { left: 0.0, right: 0.0, top: 0.0, bottom: 12.0 })
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("NEXUS").size(26.0).color(Colors::ACCENT_BLUE).strong());
+                            ui.add_space(4.0);
+                            ui.label(RichText::new("Account Manager").size(26.0).color(Colors::TEXT_PRIMARY));
+                            
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                // Minimize to tray button
+                                #[cfg(windows)]
+                                {
+                                    if ui.add(egui::Button::new(RichText::new("_").size(16.0).color(Colors::TEXT_MUTED))
+                                        .fill(Colors::BG_LIGHT)
+                                        .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
+                                        .min_size(egui::vec2(28.0, 28.0)))
+                                        .on_hover_text("Minimize to tray")
+                                        .clicked() 
+                                    {
+                                        if self.data.minimize_to_tray {
+                                            // Use Windows API to hide the window
+                                            MINIMIZED_TO_TRAY.store(true, Ordering::SeqCst);
+                                            self.minimized_to_tray = true;
+                                            win_utils::hide_window();
+                                        } else {
+                                            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                                        }
+                                    }
+                                    ui.add_space(8.0);
+                                }
+                                
+                                ui.label(RichText::new(format!("{} accounts", self.data.accounts.len()))
+                                    .color(Colors::TEXT_MUTED).size(14.0));
+                            });
+                        });
+                    });
+                
+                if !self.status.is_empty() {
+                    let color = if self.status_error { Colors::ACCENT_RED } else { Colors::ACCENT_GREEN };
+                    let bg_color = if self.status_error { 
+                        Colors::ACCENT_RED.linear_multiply(0.15) 
+                    } else { 
+                        Colors::ACCENT_GREEN.linear_multiply(0.15) 
+                    };
+                    
+                    egui::Frame::none()
+                        .fill(bg_color)
+                        .stroke(egui::Stroke::new(1.0, color.linear_multiply(0.5)))
+                        .rounding(egui::Rounding::same(6.0))
+                        .inner_margin(egui::Margin::symmetric(12.0, 8.0))
+                        .outer_margin(egui::Margin { left: 0.0, right: 0.0, top: 0.0, bottom: 8.0 })
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                theme::draw_status_circle(ui, color, 8.0);
+                                ui.add_space(8.0);
+                                ui.label(RichText::new(&self.status).color(color).size(13.0).strong());
+                            });
+                        });
+                }
+                
+                egui::Frame::none()
+                    .fill(Colors::BG_LIGHT)
+                    .stroke(egui::Stroke::new(2.0, Colors::BORDER_DARK))
+                    .rounding(egui::Rounding::same(10.0))
+                    .inner_margin(egui::Margin::symmetric(8.0, 6.0))
+                    .outer_margin(egui::Margin { left: 0.0, right: 0.0, top: 0.0, bottom: 12.0 })
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            self.render_tab_button(ui, Tab::Accounts, "📋 Accounts");
+                            self.render_tab_button(ui, Tab::AddAccount, "➕ Add");
+                            self.render_tab_button(ui, Tab::Games, "🎮 Games");
+                            self.render_tab_button(ui, Tab::Servers, "🌐 Servers");
+                            self.render_tab_button(ui, Tab::AccountUtils, "🔧 Utils");
+                            self.render_tab_button(ui, Tab::Settings, "⚙ Settings");
+                            self.render_tab_button(ui, Tab::About, "ℹ About");
+                        });
+                    });
+                
+                egui::Frame::none()
+                    .fill(Colors::BG_MEDIUM)
+                    .stroke(egui::Stroke::new(2.0, Colors::BORDER_LIGHT))
+                    .rounding(egui::Rounding::same(10.0))
+                    .inner_margin(egui::Margin::same(16.0))
+                    .show(ui, |ui| {
+                        // Let each tab handle its own scroll area to avoid nesting issues
+                        match self.tab {
+                            Tab::Accounts => self.render_accounts_tab(ui),
+                            Tab::AddAccount => self.render_add_account_tab(ui),
+                            Tab::Games => self.render_games_tab(ui),
+                            Tab::Servers => self.render_servers_tab(ui),
+                            Tab::AccountUtils => self.render_account_utils_tab(ui),
+                            Tab::ImportCookie => self.render_import_cookie_tab(ui),
+                            Tab::Settings => self.render_settings_tab(ui),
+                            Tab::About => self.render_about_tab(ui),
+                        }
+                    });
+            });
+        
+        // Cookie Management Modal
+        if self.cookie_modal_show {
+            self.render_cookie_modal(ctx);
+        }
+        
+        // Follow User Modal
+        if self.follow_user_show {
+            self.render_follow_user_modal(ctx);
+        }
+        
+        // VIP Access Code Modal
+        if self.server_browser.vip_access_code_show {
+            self.render_vip_access_code_modal(ctx);
+        }
+    }
+}
