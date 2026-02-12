@@ -1,5 +1,3 @@
-// Multi-instance via mutex trick
-
 use std::ptr;
 use std::ffi::CString;
 
