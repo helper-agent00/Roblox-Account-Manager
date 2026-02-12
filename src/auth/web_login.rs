@@ -1,5 +1,3 @@
-// Browser-based login via Chrome DevTools Protocol
-
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::thread;
