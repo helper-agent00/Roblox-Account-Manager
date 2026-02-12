@@ -1,5 +1,3 @@
-// Cookie detection from browsers and registry
-
 use std::fs;
 use std::path::PathBuf;
 
