@@ -1,32 +1,29 @@
-// Account utilities tab
-
 use eframe::egui::{self, RichText, Color32};
-use crate::theme::Colors;
+use crate::theme::{self, Colors};
 use super::{Action, NexusApp, Tab};
 
 impl NexusApp {
     pub fn render_account_utils_tab(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("🔧 ACCOUNT UTILITIES").size(13.0).color(Colors::TEXT_MUTED).strong());
+            theme::section_header(ui, "🔧", "ACCOUNT UTILITIES");
             
-            ui.add_space(20.0);
+            ui.add_space(16.0);
             
-            // Show selected account
             if let Some(idx) = self.selected {
                 if let Some(account) = self.data.accounts.get(idx) {
-                    ui.label(RichText::new("Selected:").color(Colors::TEXT_SECONDARY));
-                    ui.label(RichText::new(&account.username).color(Colors::ACCENT_BLUE).strong());
+                    ui.label(RichText::new("Selected:").color(Colors::TEXT_SECONDARY).size(12.0));
+                    theme::label_badge(ui, &account.username, Colors::ACCENT_BLUE);
                     
                     if let Some(ref display_name) = account.display_name {
-                        ui.label(RichText::new(format!("({})", display_name)).color(Colors::TEXT_MUTED));
+                        ui.label(RichText::new(format!("({})", display_name)).color(Colors::TEXT_MUTED).size(11.0));
                     }
                 }
             } else {
-                ui.label(RichText::new("⚠ Select an account first").color(Colors::ACCENT_YELLOW));
+                ui.label(RichText::new("⚠ Select an account first").color(Colors::ACCENT_YELLOW).size(12.0));
             }
             
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(egui::Button::new("👥 Accounts").fill(Colors::BG_LIGHT)).clicked() {
+                if ui.add(theme::secondary_button("← Accounts")).clicked() {
                     self.tab = Tab::Accounts;
                 }
             });
@@ -35,33 +32,25 @@ impl NexusApp {
         ui.add_space(16.0);
         
         if self.selected.is_none() {
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(20.0))
-                .show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.label(RichText::new("No account selected").size(16.0).color(Colors::TEXT_MUTED));
-                        ui.add_space(8.0);
-                        ui.label(RichText::new("Go to Accounts tab and select an account first").color(Colors::TEXT_SECONDARY));
-                    });
+            theme::section_frame().show(ui, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(20.0);
+                    ui.label(RichText::new("📋").size(24.0));
+                    ui.add_space(6.0);
+                    ui.label(RichText::new("No account selected").size(16.0).color(Colors::TEXT_MUTED));
+                    ui.label(RichText::new("Go to Accounts tab and select one first").color(Colors::TEXT_SECONDARY).size(12.0));
+                    ui.add_space(20.0);
                 });
+            });
             return;
         }
         
         let idx = self.selected.unwrap();
         
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            // Session Management
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("🔐 Session Management").size(14.0).color(Colors::TEXT_PRIMARY).strong());
-                    ui.add_space(12.0);
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "🔐", "SESSION");
+                    ui.add_space(8.0);
                     
                     ui.horizontal(|ui| {
                         if ui.add(egui::Button::new("🚪 Logout Other Sessions")
@@ -77,30 +66,19 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // Change Password
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("🔑 Change Password").size(14.0).color(Colors::TEXT_PRIMARY).strong());
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "🔑", "PASSWORD");
                     ui.add_space(12.0);
                     
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("New Password:").color(Colors::TEXT_SECONDARY));
                         
-                        egui::Frame::none()
-                            .fill(Color32::WHITE)
-                            .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                            .rounding(egui::Rounding::same(4.0))
-                            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
-                            .show(ui, |ui| {
+                        theme::input_frame().show(ui, |ui| {
                                 ui.add(egui::TextEdit::singleline(&mut self.util_new_password)
                                     .password(true)
                                     .desired_width(200.0)
-                                    .hint_text("Enter new password")
-                                    .text_color(Color32::from_rgb(20, 20, 30))
+                                    .hint_text(RichText::new("Enter new password").color(Colors::TEXT_MUTED))
+                                    .text_color(Colors::TEXT_PRIMARY)
                                     .frame(false));
                             });
                         
@@ -118,29 +96,18 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // Change Display Name
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("📝 Change Display Name").size(14.0).color(Colors::TEXT_PRIMARY).strong());
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "📝", "DISPLAY NAME");
                     ui.add_space(12.0);
                     
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("New Display Name:").color(Colors::TEXT_SECONDARY));
                         
-                        egui::Frame::none()
-                            .fill(Color32::WHITE)
-                            .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                            .rounding(egui::Rounding::same(4.0))
-                            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
-                            .show(ui, |ui| {
+                        theme::input_frame().show(ui, |ui| {
                                 ui.add(egui::TextEdit::singleline(&mut self.util_new_display_name)
                                     .desired_width(200.0)
-                                    .hint_text("Enter new display name")
-                                    .text_color(Color32::from_rgb(20, 20, 30))
+                                    .hint_text(RichText::new("Enter new display name").color(Colors::TEXT_MUTED))
+                                    .text_color(Colors::TEXT_PRIMARY)
                                     .frame(false));
                             });
                         
@@ -158,29 +125,18 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // User Actions
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("👥 User Actions").size(14.0).color(Colors::TEXT_PRIMARY).strong());
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "👥", "USER ACTIONS");
                     ui.add_space(12.0);
                     
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("Target Username:").color(Colors::TEXT_SECONDARY));
                         
-                        egui::Frame::none()
-                            .fill(Color32::WHITE)
-                            .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                            .rounding(egui::Rounding::same(4.0))
-                            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
-                            .show(ui, |ui| {
+                        theme::input_frame().show(ui, |ui| {
                                 ui.add(egui::TextEdit::singleline(&mut self.util_target_user)
                                     .desired_width(200.0)
-                                    .hint_text("Enter username")
-                                    .text_color(Color32::from_rgb(20, 20, 30))
+                                    .hint_text(RichText::new("Enter username").color(Colors::TEXT_MUTED))
+                                    .text_color(Colors::TEXT_PRIMARY)
                                     .frame(false));
                             });
                     });
@@ -188,7 +144,6 @@ impl NexusApp {
                     ui.add_space(8.0);
                     
                     ui.horizontal(|ui| {
-                        // Block button
                         if ui.add(egui::Button::new("🚫 Block")
                             .fill(Colors::ACCENT_RED.linear_multiply(0.8))
                             .min_size(egui::vec2(100.0, 28.0))).clicked() 
@@ -196,7 +151,6 @@ impl NexusApp {
                             self.do_user_action(idx, "block");
                         }
                         
-                        // Unblock button
                         if ui.add(egui::Button::new(" Unblock")
                             .fill(Colors::ACCENT_GREEN.linear_multiply(0.8))
                             .min_size(egui::vec2(100.0, 28.0))).clicked() 
@@ -204,7 +158,6 @@ impl NexusApp {
                             self.do_user_action(idx, "unblock");
                         }
                         
-                        // Friend request button
                         if ui.add(egui::Button::new("+ Send Friend Request")
                             .fill(Colors::ACCENT_BLUE)
                             .min_size(egui::vec2(150.0, 28.0))).clicked() 
@@ -216,22 +169,14 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // Account Organization (Groups and Notes)
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("Account Organization").size(14.0).color(Colors::TEXT_PRIMARY).strong());
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "📁", "ORGANIZATION");
                     ui.add_space(12.0);
                     
-                    // Group selection
                     let current_group = self.data.accounts.get(idx)
                         .map(|a| a.group.clone())
                         .unwrap_or_default();
                     
-                    // Get all existing groups for suggestions (clone to avoid borrow issues)
                     let existing_groups: Vec<String> = self.data.accounts.iter()
                         .map(|a| a.group.clone())
                         .filter(|g| !g.is_empty())
@@ -242,17 +187,12 @@ impl NexusApp {
                     ui.horizontal(|ui| {
                         ui.label(RichText::new("Group:").color(Colors::TEXT_SECONDARY));
                         
-                        egui::Frame::none()
-                            .fill(Color32::WHITE)
-                            .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                            .rounding(egui::Rounding::same(4.0))
-                            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
-                            .show(ui, |ui| {
+                        theme::input_frame().show(ui, |ui| {
                                 let mut group = current_group.clone();
                                 let response = ui.add(egui::TextEdit::singleline(&mut group)
                                     .desired_width(150.0)
-                                    .hint_text("No group")
-                                    .text_color(Color32::from_rgb(20, 20, 30))
+                                    .hint_text(RichText::new("No group").color(Colors::TEXT_MUTED))
+                                    .text_color(Colors::TEXT_PRIMARY)
                                     .frame(false));
                                 
                                 if response.changed() {
@@ -264,7 +204,6 @@ impl NexusApp {
                             });
                     });
                     
-                    // Quick group buttons on separate row
                     if !existing_groups.is_empty() {
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
@@ -305,25 +244,19 @@ impl NexusApp {
                     
                     ui.add_space(8.0);
                     
-                    // Notes
                     ui.label(RichText::new("Notes:").color(Colors::TEXT_SECONDARY));
                     
                     let current_notes = self.data.accounts.get(idx)
                         .map(|a| a.notes.clone())
                         .unwrap_or_default();
                     
-                    egui::Frame::none()
-                        .fill(Color32::WHITE)
-                        .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                        .rounding(egui::Rounding::same(4.0))
-                        .inner_margin(egui::Margin::same(8.0))
-                        .show(ui, |ui| {
+                    theme::input_frame().show(ui, |ui| {
                             let mut notes = current_notes.clone();
                             let response = ui.add(egui::TextEdit::multiline(&mut notes)
                                 .desired_width(ui.available_width() - 16.0)
                                 .desired_rows(3)
-                                .hint_text("Add notes about this account...")
-                                .text_color(Color32::from_rgb(20, 20, 30))
+                                .hint_text(RichText::new("Add notes about this account...").color(Colors::TEXT_MUTED))
+                                .text_color(Colors::TEXT_PRIMARY)
                                 .frame(false));
                             
                             if response.changed() {
@@ -337,14 +270,8 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // Quick Actions for all accounts
-            egui::Frame::none()
-                .fill(Colors::BG_CARD)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(8.0))
-                .inner_margin(egui::Margin::same(16.0))
-                .show(ui, |ui| {
-                    ui.label(RichText::new("⚡ Quick Actions").size(14.0).color(Colors::TEXT_PRIMARY).strong());
+            theme::section_frame().show(ui, |ui| {
+                    theme::section_header(ui, "⚡", "QUICK ACTIONS");
                     ui.add_space(12.0);
                     
                     ui.horizontal(|ui| {
