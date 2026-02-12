@@ -1,5 +1,3 @@
-// Account data and storage
-
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -96,7 +94,6 @@ pub struct RobloxAccount {
     pub notes: String,
     #[serde(default)]
     pub group: String,
-    // Extended account info
     #[serde(default)]
     pub robux: Option<i64>,
     #[serde(default)]
@@ -107,10 +104,8 @@ pub struct RobloxAccount {
     pub collectibles_count: Option<u32>,
     #[serde(default)]
     pub last_info_fetch: Option<String>,
-    // Avatar thumbnail URL
     #[serde(default)]
     pub avatar_url: Option<String>,
-    // Presence info (not persisted, loaded at runtime)
     #[serde(skip)]
     pub presence: Option<UserPresence>,
 }
@@ -135,19 +130,19 @@ pub struct AppData {
     pub accounts: Vec<RobloxAccount>,
     pub last_place_id: String,
     #[serde(default)]
-    pub favorite_games: Vec<String>,  // Place IDs of favorite games
+    pub favorite_games: Vec<String>,
     #[serde(default)]
-    pub multi_instance_enabled: bool, // Enable multiple Roblox clients
+    pub multi_instance_enabled: bool,
     #[serde(default)]
-    pub recent_games: Vec<RecentGame>, // Recently played games
+    pub recent_games: Vec<RecentGame>,
     #[serde(default)]
-    pub user_games: Vec<UserGame>,    // User-added custom games
+    pub user_games: Vec<UserGame>,
     #[serde(default)]
-    pub auto_refresh_cookies: bool,   // Auto-refresh cookies
+    pub auto_refresh_cookies: bool,
     #[serde(default)]
-    pub batch_launch_delay: u32,      // Delay between batch launches (seconds)
+    pub batch_launch_delay: u32,
     #[serde(default)]
-    pub minimize_to_tray: bool,       // Minimize to system tray instead of taskbar
+    pub minimize_to_tray: bool,
 }
 
 impl AppData {
