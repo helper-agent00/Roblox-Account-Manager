@@ -1,5 +1,3 @@
-// Server browser tab with VIP and Private server support
-
 use eframe::egui::{self, RichText};
 use crate::api::server_browser::SortColumn;
 use crate::theme::Colors;
@@ -10,7 +8,6 @@ impl NexusApp {
         let game_name = self.server_browser.current_game_name.clone()
             .or_else(|| if !self.selected_game_name.is_empty() { Some(self.selected_game_name.clone()) } else { None });
         
-        // Header
         ui.horizontal(|ui| {
             ui.label(RichText::new("🌐 SERVER BROWSER").size(13.0).color(Colors::TEXT_MUTED).strong());
             
@@ -45,7 +42,6 @@ impl NexusApp {
         
         ui.add_space(12.0);
         
-        // Server type toggle (Public / VIP) and Private Server Input
         egui::Frame::none()
             .fill(Colors::BG_CARD)
             .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
@@ -53,7 +49,6 @@ impl NexusApp {
             .inner_margin(egui::Margin::same(12.0))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    // Public servers button
                     let public_active = !self.server_browser.show_vip_servers;
                     let public_btn = egui::Button::new(
                         RichText::new("🌐 Public").color(if public_active { Colors::TEXT_PRIMARY } else { Colors::TEXT_MUTED })
@@ -68,7 +63,6 @@ impl NexusApp {
                     
                     ui.add_space(4.0);
                     
-                    // VIP servers button
                     let vip_active = self.server_browser.show_vip_servers;
                     let vip_btn = egui::Button::new(
                         RichText::new("⭐ VIP").color(if vip_active { Colors::TEXT_PRIMARY } else { Colors::TEXT_MUTED })
@@ -88,7 +82,6 @@ impl NexusApp {
                     ui.separator();
                     ui.add_space(8.0);
                     
-                    // Private server link input
                     ui.label(RichText::new("🔒").size(14.0));
                     ui.add_space(4.0);
                     
@@ -123,7 +116,6 @@ impl NexusApp {
         
         ui.add_space(12.0);
         
-        // Server list
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             if self.server_browser.loading {
                 ui.horizontal(|ui| {
@@ -177,7 +169,6 @@ impl NexusApp {
                 return;
             }
             
-            // Stats
             let total = servers.len();
             let total_players: u32 = servers.iter().map(|s| s.playing).sum();
             let server_type_icon = if self.server_browser.show_vip_servers { "⭐" } else { "🌐" };
@@ -214,7 +205,6 @@ impl NexusApp {
             
             ui.add_space(12.0);
             
-            // Column headers
             ui.horizontal(|ui| {
                 ui.add_space(8.0);
                 
@@ -249,7 +239,6 @@ impl NexusApp {
             
             ui.add_space(8.0);
             
-            // Server rows
             let sorted_indices = self.server_browser.get_sorted_indices();
             let servers_data: Vec<_> = {
                 let servers = self.server_browser.active_servers();
@@ -356,7 +345,6 @@ impl NexusApp {
                 ui.add_space(4.0);
             }
             
-            // Load more button
             let has_more = self.server_browser.has_more();
             if has_more {
                 ui.add_space(12.0);
