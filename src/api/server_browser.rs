@@ -1,8 +1,5 @@
-// Server browser API
-
 use serde::{Deserialize, Serialize};
 
-// Server data from Roblox API (supports both public and VIP)
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct ServerData {
@@ -12,7 +9,6 @@ pub struct ServerData {
     pub playing: u32,
     pub fps: Option<f32>,
     pub ping: Option<u32>,
-    // VIP server fields
     pub name: Option<String>,
     #[serde(rename = "vipServerId")]
     pub vip_server_id: Option<u64>,
@@ -23,7 +19,6 @@ pub struct ServerData {
 }
 
 impl ServerData {
-    // Get fill percentage
     pub fn fill_percent(&self) -> f32 {
         if self.max_players == 0 {
             0.0
@@ -32,29 +27,24 @@ impl ServerData {
         }
     }
     
-    // Check if server is full
     pub fn is_full(&self) -> bool {
         self.playing >= self.max_players
     }
     
-    // Check if server has players
     pub fn has_players(&self) -> bool {
         self.playing > 0
     }
     
-    // Check if this is a VIP server
     pub fn is_vip(&self) -> bool {
         self.server_type == ServerType::VIP || self.access_code.is_some()
     }
     
-    // Get display name (VIP servers have names)
     pub fn display_name(&self) -> String {
         if let Some(ref name) = self.name {
             if !name.is_empty() {
                 return name.clone();
             }
         }
-        // Truncate job ID for display
         if self.id.len() > 12 {
             format!("{}...", &self.id[..12])
         } else {
@@ -62,7 +52,6 @@ impl ServerData {
         }
     }
     
-    // Get the job ID or access code for launching
     pub fn get_join_id(&self) -> &str {
         if self.is_vip() {
             self.access_code.as_deref().unwrap_or(&self.id)
@@ -81,25 +70,6 @@ pub enum ServerType {
     Private,
 }
 
-impl ServerType {
-    pub fn label(&self) -> &'static str {
-        match self {
-            ServerType::Public => "Public",
-            ServerType::VIP => "VIP",
-            ServerType::Private => "Private",
-        }
-    }
-    
-    pub fn icon(&self) -> &'static str {
-        match self {
-            ServerType::Public => "🌐",
-            ServerType::VIP => "⭐",
-            ServerType::Private => "🔒",
-        }
-    }
-}
-
-// Response from servers API
 #[derive(Deserialize)]
 #[allow(dead_code)]
 pub struct ServersResponse {
@@ -110,17 +80,16 @@ pub struct ServersResponse {
     pub data: Vec<ServerData>,
 }
 
-// Sort column for server list
 #[derive(Default, Clone, Copy, PartialEq)]
 pub enum SortColumn {
     #[default]
     None,
     Players,
+    #[allow(dead_code)]
     Ping,
     Fill,
 }
 
-// Sort direction
 #[derive(Default, Clone, Copy, PartialEq)]
 pub enum SortDirection {
     #[default]
@@ -144,7 +113,6 @@ impl SortDirection {
     }
 }
 
-// Server browser state
 #[derive(Default)]
 pub struct ServerBrowser {
     pub servers: Vec<ServerData>,
@@ -159,9 +127,7 @@ pub struct ServerBrowser {
     pub sort_column: SortColumn,
     pub sort_direction: SortDirection,
     pub show_vip_servers: bool,
-    // Private server link input
     pub private_server_input: String,
-    // VIP access code modal
     pub vip_access_code_input: String,
     pub vip_access_code_show: bool,
     pub vip_pending_server_idx: Option<usize>,
@@ -173,7 +139,6 @@ impl ServerBrowser {
         Self::default()
     }
     
-    // Clear current servers
     pub fn clear(&mut self) {
         self.servers.clear();
         self.vip_servers.clear();
@@ -184,7 +149,6 @@ impl ServerBrowser {
         self.current_game_name = None;
     }
     
-    // Get active server list based on current view
     pub fn active_servers(&self) -> &Vec<ServerData> {
         if self.show_vip_servers {
             &self.vip_servers
@@ -193,7 +157,6 @@ impl ServerBrowser {
         }
     }
     
-    // Has more pages to load
     pub fn has_more(&self) -> bool {
         if self.show_vip_servers {
             self.vip_next_cursor.is_some()
@@ -202,7 +165,6 @@ impl ServerBrowser {
         }
     }
     
-    // Toggle sort on a column
     pub fn toggle_sort(&mut self, column: SortColumn) {
         if self.sort_column == column {
             self.sort_direction = self.sort_direction.toggle();
@@ -212,7 +174,6 @@ impl ServerBrowser {
         }
     }
     
-    // Get sorted server indices
     pub fn get_sorted_indices(&self) -> Vec<usize> {
         let servers = self.active_servers();
         let mut indices: Vec<usize> = (0..servers.len()).collect();
@@ -244,7 +205,6 @@ impl ServerBrowser {
         indices
     }
     
-    // Get selected server's job ID
     #[allow(dead_code)]
     pub fn get_selected_job_id(&self) -> Option<&str> {
         let servers = self.active_servers();
@@ -253,14 +213,12 @@ impl ServerBrowser {
             .map(|s| s.get_join_id())
     }
     
-    // Get selected server
     pub fn get_selected_server(&self) -> Option<&ServerData> {
         let servers = self.active_servers();
         self.selected_server.and_then(|idx| servers.get(idx))
     }
 }
 
-// Helper to run async code on a separate thread to avoid runtime nesting
 fn run_async<F, T>(future: F) -> Result<T, String>
 where
     F: std::future::Future<Output = Result<T, String>> + Send + 'static,
@@ -274,7 +232,6 @@ where
     })
 }
 
-// Fetch servers for a place
 pub fn fetch_servers(place_id: &str, cursor: Option<&str>) -> Result<ServersResponse, String> {
     let place_id = place_id.to_string();
     let cursor = cursor.map(|s| s.to_string());
@@ -308,11 +265,9 @@ pub fn fetch_servers(place_id: &str, cursor: Option<&str>) -> Result<ServersResp
     })
 }
 
-// Get a random server from available servers
 pub fn get_random_server(place_id: &str) -> Result<String, String> {
     let response = fetch_servers(place_id, None)?;
     
-    // Filter to servers that have players and aren't full
     let available: Vec<_> = response.data.iter()
         .filter(|s| s.has_players() && !s.is_full())
         .collect();
@@ -321,7 +276,6 @@ pub fn get_random_server(place_id: &str) -> Result<String, String> {
         return Err("No available servers found".to_string());
     }
     
-    // Pick a random one
     let idx = rand::random::<usize>() % available.len();
     Ok(available[idx].id.clone())
 }
