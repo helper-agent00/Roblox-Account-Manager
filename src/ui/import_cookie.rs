@@ -1,6 +1,4 @@
-// Import cookie tab
-
-use eframe::egui::{self, RichText, Color32};
+use eframe::egui::{self, RichText};
 use crate::theme::{self, Colors};
 use super::{Action, NexusApp, Tab};
 
@@ -27,7 +25,6 @@ impl NexusApp {
                 
                 ui.add_space(20.0);
                 
-                // Auto-find card
                 egui::Frame::none()
                     .fill(Colors::BG_CARD)
                     .stroke(egui::Stroke::new(2.0, Colors::BORDER_ACCENT))
@@ -46,7 +43,6 @@ impl NexusApp {
                         ui.add_space(8.0);
                         ui.label(RichText::new("Searches Registry, Chrome, Edge, Firefox").color(Colors::TEXT_MUTED).size(12.0));
                         
-                        // Show found cookies
                         if !self.found_cookies.is_empty() {
                             ui.add_space(12.0);
                             
@@ -79,7 +75,6 @@ impl NexusApp {
                 
                 ui.add_space(16.0);
                 
-                // Manual steps card
                 egui::Frame::none()
                     .fill(Colors::BG_CARD)
                     .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
@@ -114,16 +109,16 @@ impl NexusApp {
                 ui.add_space(12.0);
                 
                 egui::Frame::none()
-                    .fill(Color32::WHITE)
-                    .stroke(egui::Stroke::new(2.0, Colors::BORDER_ACCENT))
+                    .fill(Colors::BG_INPUT)
+                    .stroke(egui::Stroke::new(1.5, Colors::BORDER_ACCENT))
                     .rounding(egui::Rounding::same(8.0))
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
                         ui.add_sized(
                             [ui.available_width(), 120.0],
                             egui::TextEdit::multiline(&mut self.import_cookie)
-                                .hint_text("Paste your .ROBLOSECURITY cookie here...")
-                                .text_color(Color32::from_rgb(20, 20, 30))
+                                .hint_text(RichText::new("Paste your .ROBLOSECURITY cookie here...").color(Colors::TEXT_MUTED))
+                                .text_color(Colors::TEXT_PRIMARY)
                                 .frame(false)
                                 .font(egui::TextStyle::Monospace)
                         );
@@ -148,7 +143,6 @@ impl NexusApp {
                 
                 ui.add_space(20.0);
                 
-                // Warning
                 egui::Frame::none()
                     .fill(Colors::ACCENT_YELLOW.linear_multiply(0.1))
                     .stroke(egui::Stroke::new(1.0, Colors::ACCENT_YELLOW.linear_multiply(0.3)))
