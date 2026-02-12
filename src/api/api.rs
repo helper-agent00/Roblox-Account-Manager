@@ -1,5 +1,3 @@
-// Roblox API client
-
 use crate::account::{UserPresence, UserPresenceType};
 use std::collections::HashMap;
 use std::process::Command;
@@ -8,7 +6,6 @@ use std::time::Duration;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
-// Windows flag to hide console window
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -24,7 +21,6 @@ where
     F: std::future::Future<Output = Result<T, String>> + Send + 'static,
     T: Send + 'static,
 {
-    // Always run on a separate thread to avoid runtime nesting issues
     std::thread::scope(|s| {
         s.spawn(|| {
             let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
@@ -82,7 +78,6 @@ impl RobloxApi {
             
             let mut info = AccountInfo::default();
             
-            // Get Robux balance from economy API
             if let Ok(resp) = client
                 .get("https://economy.roblox.com/v1/user/currency")
                 .header("Cookie", &cookie_header)
@@ -94,7 +89,6 @@ impl RobloxApi {
                 }
             }
             
-            // Get friends count
             if let Ok(resp) = client
                 .get(format!("https://friends.roblox.com/v1/users/{}/friends/count", user_id))
                 .header("Cookie", &cookie_header)
@@ -106,7 +100,6 @@ impl RobloxApi {
                 }
             }
             
-            // Check premium status
             if let Ok(resp) = client
                 .get(format!("https://premiumfeatures.roblox.com/v1/users/{}/validate-membership", user_id))
                 .header("Cookie", &cookie_header)
@@ -179,7 +172,6 @@ impl RobloxApi {
         run_async(async move {
             let client = reqwest::Client::new();
             
-            // First, get the universe ID from the place ID
             let universe_resp = client
                 .get(format!("https://apis.roblox.com/universes/v1/places/{}/universe", place_id))
                 .send()
@@ -193,7 +185,6 @@ impl RobloxApi {
                 None
             };
             
-            // If we got universe ID, fetch the game details
             if let Some(ref uid) = universe_id {
                 let game_resp = client
                     .get(format!("https://games.roblox.com/v1/games?universeIds={}", uid))
@@ -212,7 +203,6 @@ impl RobloxApi {
                 }
             }
             
-            // Fallback: try the place details endpoint
             let resp = client
                 .get(format!("https://games.roblox.com/v1/games/multiget-place-details?placeIds={}", place_id))
                 .send()
@@ -243,7 +233,6 @@ impl RobloxApi {
                 .map_err(|e| format!("Failed to build client: {}", e))?;
             let formatted_cookie = format_cookie_str(&cookie);
 
-            // Step 1: Get CSRF token (use trailing slash like official client)
             let csrf_resp = client
                 .post("https://auth.roblox.com/v1/authentication-ticket/")
                 .header("Cookie", format!(".ROBLOSECURITY={}", formatted_cookie))
@@ -260,7 +249,6 @@ impl RobloxApi {
                 .map(|s| s.to_string())
                 .ok_or("Failed to get CSRF token")?;
 
-            // Step 2: Request auth ticket with CSRF token
             let ticket_resp = client
                 .post("https://auth.roblox.com/v1/authentication-ticket/")
                 .header("Cookie", format!(".ROBLOSECURITY={}", formatted_cookie))
@@ -275,7 +263,6 @@ impl RobloxApi {
                 return Err(format!("Failed to get auth ticket: HTTP {}", ticket_resp.status()));
             }
 
-            // The ticket is in the response header
             let ticket = ticket_resp
                 .headers()
                 .get("rbx-authentication-ticket")
@@ -305,25 +292,19 @@ impl RobloxApi {
     /// Launch with a specific Job ID (server)
     #[cfg(windows)]
     pub fn launch_with_job_id(cookie: &str, place_id: Option<&str>, job_id: Option<&str>, multi_instance: bool) -> Result<(), String> {
-        // Only kill existing processes if NOT in multi-instance mode
         if !multi_instance {
             Command::new("taskkill").args(["/F", "/IM", "RobloxPlayerBeta.exe"]).creation_flags(CREATE_NO_WINDOW).output().ok();
             Command::new("taskkill").args(["/F", "/IM", "Roblox.exe"]).creation_flags(CREATE_NO_WINDOW).output().ok();
             std::thread::sleep(Duration::from_millis(500));
         }
 
-        // Get an authentication ticket - this is how the browser launches Roblox!
         let auth_ticket = Self::get_auth_ticket(cookie)?;
 
-        // Get browser tracker ID (just a random ID for tracking)
         let browser_tracker_id: u64 = rand::random::<u64>() % 1_000_000_000_000;
         
-        // Build the launch URL - this is the same format the Roblox website uses
         let place_id_str = place_id.unwrap_or("1818").trim();
         let place_id_num = if place_id_str.is_empty() { "1818" } else { place_id_str };
         
-        // Build the place launcher URL based on whether we have a job ID
-        // Format matches the official Roblox website launcher
         let launcher_url = if let Some(jid) = job_id {
             format!(
                 "https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestGameJob&browserTrackerId={}&placeId={}&gameId={}&isPlayTogetherGame=false&isTeleport=true",
@@ -336,8 +317,6 @@ impl RobloxApi {
             )
         };
         
-        // The roblox-player protocol with auth ticket
-        // Must include channel: and LaunchExp:InApp for proper server joining
         let launch_url = format!(
             "roblox-player:1+launchmode:play+gameinfo:{}+launchtime:{}+placelauncherurl:{}+browsertrackerid:{}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp",
             auth_ticket,
@@ -346,7 +325,6 @@ impl RobloxApi {
             browser_tracker_id
         );
 
-        // Launch using the protocol handler (windowless)
         Command::new("cmd")
             .args(["/C", "start", "", &launch_url])
             .creation_flags(CREATE_NO_WINDOW)
@@ -384,7 +362,6 @@ impl RobloxApi {
         let auth_ticket = Self::get_auth_ticket(cookie)?;
         let browser_tracker_id: u64 = rand::random::<u64>() % 1_000_000_000_000;
         
-        // Build private server launcher URL
         let launcher_url = if let Some(lc) = link_code {
             format!(
                 "https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestPrivateGame&placeId={}&accessCode={}&linkCode={}",
@@ -783,13 +760,11 @@ impl RobloxApi {
         run_async(async move {
             let client = reqwest::Client::new();
             
-            // Build comma-separated user IDs
             let ids_str: String = user_ids.iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
             
-            // Request 48x48 headshots
             let url = format!(
                 "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={}&size=48x48&format=Png&isCircular=false",
                 ids_str
@@ -816,7 +791,6 @@ impl RobloxApi {
                         avatar.get("targetId").and_then(|v| v.as_u64()),
                         avatar.get("imageUrl").and_then(|v| v.as_str())
                     ) {
-                        // Only add if state is "Completed"
                         if avatar.get("state").and_then(|v| v.as_str()) == Some("Completed") {
                             result.insert(target_id, image_url.to_string());
                         }
@@ -834,7 +808,6 @@ impl RobloxApi {
         run_async(async move {
             let client = reqwest::Client::new();
             
-            // Get count of collectible items
             let resp = client
                 .get(format!("https://inventory.roblox.com/v1/users/{}/assets/collectibles?limit=10", user_id))
                 .send()
@@ -868,13 +841,11 @@ impl RobloxApi {
         run_async(async move {
             let client = reqwest::Client::new();
             
-            // Build comma-separated universe IDs
             let ids_str: String = universe_ids.iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
             
-            // Request 150x150 game icons
             let url = format!(
                 "https://thumbnails.roblox.com/v1/games/icons?universeIds={}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false",
                 ids_str
@@ -901,7 +872,6 @@ impl RobloxApi {
                         icon.get("targetId").and_then(|v| v.as_u64()),
                         icon.get("imageUrl").and_then(|v| v.as_str())
                     ) {
-                        // Only add if state is "Completed"
                         if icon.get("state").and_then(|v| v.as_str()) == Some("Completed") {
                             result.insert(target_id, image_url.to_string());
                         }
