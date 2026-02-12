@@ -1,34 +1,5 @@
-// Private Server and VIP Server utilities
-
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-
-/// Types of servers
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub enum ServerType {
-    #[default]
-    Public,
-    VIP,
-    Private,
-}
-
-impl ServerType {
-    pub fn label(&self) -> &'static str {
-        match self {
-            ServerType::Public => "Public",
-            ServerType::VIP => "VIP",
-            ServerType::Private => "Private",
-        }
-    }
-    
-    pub fn icon(&self) -> &'static str {
-        match self {
-            ServerType::Public => "🌐",
-            ServerType::VIP => "⭐",
-            ServerType::Private => "🔒",
-        }
-    }
-}
 
 /// VIP Server data from Roblox API
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -61,8 +32,6 @@ pub struct VipServerOwner {
 /// Response from VIP servers API
 #[derive(Deserialize)]
 pub struct VipServersResponse {
-    #[serde(rename = "previousPageCursor")]
-    pub previous_page_cursor: Option<String>,
     #[serde(rename = "nextPageCursor")]
     pub next_page_cursor: Option<String>,
     pub data: Vec<VipServerData>,
@@ -124,57 +93,8 @@ impl PrivateServerLink {
         
         None
     }
-    
-    /// Check if this is a valid private server link
-    pub fn is_valid(&self) -> bool {
-        !self.link_code.is_empty() || self.access_code.is_some()
-    }
-    
-    /// Get the link code or access code for launching
-    pub fn get_code(&self) -> Option<&str> {
-        if !self.link_code.is_empty() {
-            Some(&self.link_code)
-        } else {
-            self.access_code.as_deref()
-        }
-    }
 }
 
-/// Favorite game that can store private server info
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct FavoriteServer {
-    pub name: String,
-    pub place_id: u64,
-    pub private_server_link: Option<String>,
-    pub access_code: Option<String>,
-    pub last_played: Option<String>,
-}
-
-impl FavoriteServer {
-    pub fn new(name: String, place_id: u64) -> Self {
-        Self {
-            name,
-            place_id,
-            ..Default::default()
-        }
-    }
-    
-    pub fn with_private_link(mut self, link: &str) -> Self {
-        self.private_server_link = Some(link.to_string());
-        self
-    }
-    
-    pub fn with_access_code(mut self, code: &str) -> Self {
-        self.access_code = Some(code.to_string());
-        self
-    }
-    
-    pub fn is_private(&self) -> bool {
-        self.private_server_link.is_some() || self.access_code.is_some()
-    }
-}
-
-// Helper to run async code
 fn run_async<F, T>(future: F) -> Result<T, String>
 where
     F: std::future::Future<Output = Result<T, String>> + Send + 'static,
