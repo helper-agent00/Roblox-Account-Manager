@@ -1,14 +1,11 @@
-// Popular games database
-
 use eframe::egui::{self, Color32, Vec2};
 
-// A popular Roblox game
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct RobloxGame {
     pub name: &'static str,
     pub place_id: &'static str,
-    pub universe_id: Option<u64>,  // For fetching icons
+    pub universe_id: Option<u64>,
     pub color: Color32,
     pub icon_letter: char,
     pub category: GameCategory,
@@ -40,9 +37,7 @@ impl GameCategory {
     }
 }
 
-// List of popular Roblox games
 pub const POPULAR_GAMES: &[RobloxGame] = &[
-    // Fighting Games
     RobloxGame {
         name: "Rivals",
         place_id: "17625359962",
@@ -273,7 +268,6 @@ pub const POPULAR_GAMES: &[RobloxGame] = &[
     },
 ];
 
-// Draw a game icon (colored square with letter)
 #[allow(dead_code)]
 pub fn draw_game_icon(ui: &mut egui::Ui, game: &RobloxGame, size: f32) {
     let (rect, _response) = ui.allocate_exact_size(Vec2::splat(size), egui::Sense::hover());
@@ -281,14 +275,12 @@ pub fn draw_game_icon(ui: &mut egui::Ui, game: &RobloxGame, size: f32) {
     if ui.is_rect_visible(rect) {
         let painter = ui.painter();
         
-        // Background
         painter.rect_filled(
             rect,
             egui::Rounding::same(4.0),
             game.color,
         );
         
-        // Letter
         painter.text(
             rect.center(),
             egui::Align2::CENTER_CENTER,
