@@ -1,5 +1,3 @@
-// Games selection tab
-
 use eframe::egui::{self, RichText, Color32};
 use crate::games::{POPULAR_GAMES, GameCategory};
 use crate::theme::{self, Colors};
@@ -12,18 +10,12 @@ impl NexusApp {
             
             ui.add_space(20.0);
             
-            // Search box
             ui.label(RichText::new("Search:").color(Colors::TEXT_SECONDARY));
-            egui::Frame::none()
-                .fill(Color32::WHITE)
-                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                .rounding(egui::Rounding::same(4.0))
-                .inner_margin(egui::Margin::symmetric(8.0, 4.0))
-                .show(ui, |ui| {
+            theme::input_frame().show(ui, |ui| {
                     ui.add(egui::TextEdit::singleline(&mut self.game_search)
                         .desired_width(200.0)
-                        .hint_text("Type to search...")
-                        .text_color(Color32::from_rgb(20, 20, 30))
+                        .hint_text(RichText::new("Type to search...").color(Colors::TEXT_MUTED))
+                        .text_color(Colors::TEXT_PRIMARY)
                         .frame(false));
                 });
             
@@ -36,9 +28,7 @@ impl NexusApp {
         
         ui.add_space(16.0);
         
-        // Wrap in scroll area for better UX
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            // Current selection with large thumbnail
             if !self.place_id.is_empty() {
                 let current_game = POPULAR_GAMES.iter()
                     .find(|g| g.place_id == self.place_id);
@@ -66,14 +56,12 @@ impl NexusApp {
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            // Large game thumbnail
                             let thumb_size = egui::vec2(64.0, 64.0);
                             if let Some(url) = &selected_icon_url {
                                 ui.add(egui::Image::from_uri(url)
                                     .fit_to_exact_size(thumb_size)
                                     .rounding(egui::Rounding::same(8.0)));
                             } else if let Some(game) = current_game {
-                                // Fallback colored square
                                 let (rect, _) = ui.allocate_exact_size(thumb_size, egui::Sense::hover());
                                 ui.painter().rect_filled(rect, egui::Rounding::same(8.0), game.color);
                                 ui.painter().text(
@@ -84,7 +72,6 @@ impl NexusApp {
                                     Color32::WHITE
                                 );
                             } else {
-                                // Generic placeholder
                                 let (rect, _) = ui.allocate_exact_size(thumb_size, egui::Sense::hover());
                                 ui.painter().rect_filled(rect, egui::Rounding::same(8.0), Colors::BG_LIGHT);
                                 ui.painter().text(
@@ -109,7 +96,7 @@ impl NexusApp {
                 ui.add_space(12.0);
             }
             
-            // User Games section (at the top)
+
             ui.horizontal(|ui| {
                 ui.label(RichText::new("YOUR GAMES").size(12.0).color(Colors::ACCENT_PURPLE));
                 ui.add_space(8.0);
@@ -125,7 +112,6 @@ impl NexusApp {
             });
             ui.add_space(8.0);
             
-            // Add game form (expandable)
             if self.add_user_game_show {
                 egui::Frame::none()
                     .fill(Colors::BG_CARD)
@@ -136,16 +122,11 @@ impl NexusApp {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new("Place ID:").color(Colors::TEXT_SECONDARY).size(12.0));
                             ui.add_space(4.0);
-                            egui::Frame::none()
-                                .fill(Color32::WHITE)
-                                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                                .rounding(egui::Rounding::same(4.0))
-                                .inner_margin(egui::Margin::symmetric(6.0, 4.0))
-                                .show(ui, |ui| {
+                            theme::input_frame().show(ui, |ui| {
                                     ui.add(egui::TextEdit::singleline(&mut self.add_user_game_place_id)
                                         .desired_width(120.0)
-                                        .hint_text("e.g. 286090429")
-                                        .text_color(Color32::from_rgb(20, 20, 30))
+                                        .hint_text(RichText::new("e.g. 286090429").color(Colors::TEXT_MUTED))
+                                        .text_color(Colors::TEXT_PRIMARY)
                                         .frame(false));
                                 });
                             
@@ -153,16 +134,11 @@ impl NexusApp {
                             
                             ui.label(RichText::new("Name:").color(Colors::TEXT_SECONDARY).size(12.0));
                             ui.add_space(4.0);
-                            egui::Frame::none()
-                                .fill(Color32::WHITE)
-                                .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
-                                .rounding(egui::Rounding::same(4.0))
-                                .inner_margin(egui::Margin::symmetric(6.0, 4.0))
-                                .show(ui, |ui| {
+                            theme::input_frame().show(ui, |ui| {
                                     ui.add(egui::TextEdit::singleline(&mut self.add_user_game_name)
                                         .desired_width(150.0)
-                                        .hint_text("Game name")
-                                        .text_color(Color32::from_rgb(20, 20, 30))
+                                        .hint_text(RichText::new("Game name").color(Colors::TEXT_MUTED))
+                                        .text_color(Colors::TEXT_PRIMARY)
                                         .frame(false));
                                 });
                             
@@ -185,7 +161,6 @@ impl NexusApp {
                 ui.add_space(8.0);
             }
             
-            // Display user games
             if !self.data.user_games.is_empty() {
                 egui::Frame::none()
                     .fill(Colors::BG_CARD)
@@ -193,12 +168,13 @@ impl NexusApp {
                     .rounding(egui::Rounding::same(8.0))
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
-                        // Clone user games to avoid borrow issues
                         let user_games: Vec<_> = self.data.user_games.iter()
                             .map(|g| (g.place_id.clone(), g.name.clone(), g.universe_id))
                             .collect();
                         
+                        ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                         ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                             for (place_id, name, universe_id) in user_games {
                                 self.render_user_game_button(ui, &place_id, &name, universe_id);
                             }
@@ -208,7 +184,6 @@ impl NexusApp {
             
             ui.add_space(16.0);
             
-            // Recent Games section
             if !self.data.recent_games.is_empty() {
                 ui.label(RichText::new("📋 RECENTLY PLAYED").size(12.0).color(Colors::ACCENT_GREEN));
                 ui.add_space(8.0);
@@ -219,12 +194,13 @@ impl NexusApp {
                     .rounding(egui::Rounding::same(8.0))
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
-                        // Clone recent games to avoid borrow issues
                         let recent_games: Vec<_> = self.data.recent_games.iter()
                             .map(|g| (g.place_id.clone(), g.name.clone(), g.play_count, g.last_played.clone()))
                             .collect();
                         
+                        ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                         ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                             for (place_id, name, play_count, last_played) in recent_games {
                                 let is_selected = self.place_id == place_id;
                                 
@@ -267,7 +243,9 @@ impl NexusApp {
                     .rounding(egui::Rounding::same(8.0))
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                         ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                             for game in &favorite_games {
                                 self.render_game_button(ui, game.name, game.place_id, true);
                             }
@@ -277,7 +255,6 @@ impl NexusApp {
                 ui.add_space(16.0);
             }
             
-            // Categories
             let categories = [
                 (GameCategory::Fighting, "⚔️ FIGHTING"),
                 (GameCategory::Sports, "⚽ SPORTS"),
@@ -313,14 +290,16 @@ impl NexusApp {
                     .rounding(egui::Rounding::same(8.0))
                     .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                         ui.horizontal_wrapped(|ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
                             for game in games_in_cat {
                                 self.render_game_button(ui, game.name, game.place_id, false);
                             }
                         });
                     });
                 
-                ui.add_space(12.0);
+                ui.add_space(14.0);
             }
         });
     }
@@ -329,45 +308,33 @@ impl NexusApp {
         let is_selected = self.place_id == place_id;
         let is_favorite = self.data.favorite_games.contains(&place_id.to_string());
         
-        // Get game info for fallback icon
         let game_info = crate::games::POPULAR_GAMES.iter().find(|g| g.place_id == place_id);
-        
-        // Try to get universe ID and icon URL
         let universe_id = game_info.and_then(|g| g.universe_id);
         let icon_url = universe_id.and_then(|uid| self.game_icons.get(&uid).cloned());
         
-        // Game button with icon - render inline without extra horizontal wrapper
         let btn_fill = if is_selected { Colors::BG_CARD_SELECTED } else { Colors::BG_LIGHT };
         let btn_stroke = egui::Stroke::new(
             if is_selected { 2.0 } else { 1.0 },
             if is_selected { Colors::BORDER_ACCENT } else { Colors::BORDER_DARK }
         );
         
-        // Create a frame for the game button with icon
         egui::Frame::none()
             .fill(btn_fill)
             .stroke(btn_stroke)
             .rounding(egui::Rounding::same(6.0))
             .inner_margin(egui::Margin::symmetric(6.0, 4.0))
             .show(ui, |ui| {
-                ui.set_height(28.0);  // Fixed height for alignment
+                ui.set_min_height(30.0);
                 ui.horizontal_centered(|ui| {
-                    // Star button (only outside favorites section) - draw it manually
                     if !is_favorite_section {
-                        let star_char = if is_favorite { '*' } else { 'o' };
                         let star_color = if is_favorite { Colors::ACCENT_YELLOW } else { Colors::TEXT_MUTED };
                         
-                        // Draw star as a clickable area
                         let (rect, star_response) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::click());
                         let hover_color = if star_response.hovered() { Colors::ACCENT_YELLOW } else { star_color };
-                        
-                        // Draw a star shape or filled/empty circle
                         let center = rect.center();
                         if is_favorite {
-                            // Draw filled star (simplified as filled circle with rays)
                             ui.painter().circle_filled(center, 6.0, hover_color);
                         } else {
-                            // Draw empty star (circle outline)
                             ui.painter().circle_stroke(center, 5.0, egui::Stroke::new(1.5, hover_color));
                         }
                         
@@ -378,16 +345,13 @@ impl NexusApp {
                         star_response.on_hover_text(if is_favorite { "Remove from favorites" } else { "Add to favorites" });
                     }
                     
-                    // Show game icon
                     let icon_size = egui::vec2(20.0, 20.0);
                     
                     if let Some(url) = &icon_url {
-                        // Load actual game icon from Roblox
                         ui.add(egui::Image::from_uri(url)
                             .fit_to_exact_size(icon_size)
                             .rounding(egui::Rounding::same(3.0)));
                     } else if let Some(game) = game_info {
-                        // Fallback: show colored square with letter
                         let (rect, _) = ui.allocate_exact_size(icon_size, egui::Sense::hover());
                         ui.painter().rect_filled(rect, egui::Rounding::same(3.0), game.color);
                         ui.painter().text(
@@ -401,7 +365,6 @@ impl NexusApp {
                     
                     ui.add_space(4.0);
                     
-                    // Game name - clickable to select game
                     let name_response = ui.add(
                         egui::Label::new(RichText::new(name).size(11.0).color(Colors::TEXT_PRIMARY))
                             .sense(egui::Sense::click())
@@ -416,7 +379,6 @@ impl NexusApp {
     fn render_user_game_button(&mut self, ui: &mut egui::Ui, place_id: &str, name: &str, universe_id: Option<u64>) {
         let is_selected = self.place_id == place_id;
         
-        // Get icon URL if available
         let icon_url = universe_id.and_then(|uid| self.game_icons.get(&uid).cloned());
         
         let btn_fill = if is_selected { Colors::BG_CARD_SELECTED } else { Colors::BG_LIGHT };
@@ -431,9 +393,8 @@ impl NexusApp {
             .rounding(egui::Rounding::same(6.0))
             .inner_margin(egui::Margin::symmetric(6.0, 4.0))
             .show(ui, |ui| {
-                ui.set_height(28.0);
+                ui.set_min_height(30.0);
                 ui.horizontal_centered(|ui| {
-                    // Remove button - draw an X
                     let (rect, remove_response) = ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::click());
                     let color = if remove_response.hovered() { Colors::ACCENT_RED } else { Colors::TEXT_MUTED };
                     let painter = ui.painter();
@@ -455,7 +416,6 @@ impl NexusApp {
                     
                     ui.add_space(4.0);
                     
-                    // Show game icon
                     let icon_size = egui::vec2(20.0, 20.0);
                     
                     if let Some(url) = &icon_url {
@@ -463,7 +423,6 @@ impl NexusApp {
                             .fit_to_exact_size(icon_size)
                             .rounding(egui::Rounding::same(3.0)));
                     } else {
-                        // Generic placeholder for user games
                         let (rect, _) = ui.allocate_exact_size(icon_size, egui::Sense::hover());
                         ui.painter().rect_filled(rect, egui::Rounding::same(3.0), Colors::ACCENT_PURPLE.linear_multiply(0.5));
                         ui.painter().text(
@@ -477,7 +436,6 @@ impl NexusApp {
                     
                     ui.add_space(4.0);
                     
-                    // Game name - clickable to select
                     let name_response = ui.add(
                         egui::Label::new(RichText::new(name).size(11.0).color(Colors::TEXT_PRIMARY))
                             .sense(egui::Sense::click())
