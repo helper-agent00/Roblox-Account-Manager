@@ -1,5 +1,3 @@
-// Main UI module
-
 mod account_list;
 mod add_account;
 mod import_cookie;
@@ -38,45 +36,71 @@ pub enum Action {
     ImportCookie,
     FindCookies,
     UseCookie(String),
-    SelectGame(String, String),  // place_id, game_name
+    SelectGame(String, String),
     ToggleFavoriteGame(String),
     ToggleMultiInstance,
     FetchAccountInfo(usize),
     BatchLaunch,
     RefreshAllCookies,
     RefreshPresence,
-    // Server browser actions
     FetchServers,
     FetchMoreServers,
     FetchVipServers,
     FetchMoreVipServers,
-    JoinRandomServer(usize),  // account idx
-    JoinSelectedServer(usize), // account idx - join currently selected server
-    JoinPrivateServerLink(usize), // account idx - join from private server input
-    JoinVipWithAccessCode, // join VIP server with manually entered access code
-    // Account utilities actions
+    JoinRandomServer(usize),
+    JoinSelectedServer(usize),
+    JoinPrivateServerLink(usize),
+    JoinVipWithAccessCode,
     LogoutOtherSessions(usize),
     ChangePassword(usize),
     SetDisplayName(usize),
-    BlockUserByName(usize, String),     // account idx, target username
+    BlockUserByName(usize, String),
     UnblockUserByName(usize, String),
     SendFriendRequestByName(usize, String),
-    // Avatar fetching
     FetchAvatars,
-    // Browser login
     StartBrowserLogin,
-    // Import cookie as a new account (not for existing accounts)
     ImportCookieAsNewAccount,
-    // Cookie management
     ShowCookieModal(usize),
     UpdateAccountCookie(usize),
-    // Follow User - join their game
-    FollowUser(usize), // account idx to use for joining
-    // Drag & drop cookie import
+    FollowUser(usize),
     ImportDroppedCookie(String),
-    // User games
-    AddUserGame(String, String), // place_id, name
-    RemoveUserGame(String),      // place_id
+    AddUserGame(String, String),
+    RemoveUserGame(String),
+}
+
+#[derive(Default, PartialEq, Clone, Copy)]
+pub enum AccountSort {
+    #[default]
+    Default,
+    NameAsc,
+    NameDesc,
+    StatusFirst,
+    RobuxHigh,
+    GroupAlpha,
+}
+
+impl AccountSort {
+    pub fn label(&self) -> &'static str {
+        match self {
+            AccountSort::Default => "Default",
+            AccountSort::NameAsc => "Name A→Z",
+            AccountSort::NameDesc => "Name Z→A",
+            AccountSort::StatusFirst => "Valid First",
+            AccountSort::RobuxHigh => "Robux ↓",
+            AccountSort::GroupAlpha => "By Group",
+        }
+    }
+    
+    pub fn next(&self) -> Self {
+        match self {
+            AccountSort::Default => AccountSort::NameAsc,
+            AccountSort::NameAsc => AccountSort::NameDesc,
+            AccountSort::NameDesc => AccountSort::StatusFirst,
+            AccountSort::StatusFirst => AccountSort::RobuxHigh,
+            AccountSort::RobuxHigh => AccountSort::GroupAlpha,
+            AccountSort::GroupAlpha => AccountSort::Default,
+        }
+    }
 }
 
 pub struct NexusApp {
@@ -84,75 +108,61 @@ pub struct NexusApp {
     pub tab: Tab,
     pub selected: Option<usize>,
     
-    // Forms
     pub import_cookie: String,
     pub found_cookies: Vec<FoundCookie>,
     
-    // Game selection
     pub place_id: String,
-    pub selected_game_name: String,  // Name of the currently selected game
+    pub selected_game_name: String,
     
-    // UI state
     pub delete_confirm: Option<usize>,
     pub status: String,
     pub status_error: bool,
     pub action: Action,
     pub game_search: String,
     
-    // Multi-instance
+    pub account_search: String,
+    pub account_sort: AccountSort,
+    
     pub multi_instance: MultiInstanceManager,
     
-    // Batch launch
     pub batch_selected: HashSet<usize>,
     #[allow(dead_code)]
     pub batch_launching: bool,
     pub batch_delay: u32,
     
-    // Server Browser
     pub server_browser: ServerBrowser,
     
-    // Account Utilities
     pub util_target_user: String,
     #[allow(dead_code)]
     pub util_current_password: String,
     pub util_new_password: String,
     pub util_new_display_name: String,
     
-    // Avatar textures (cached in memory)
-    #[allow(dead_code)]
     pub avatar_textures: std::collections::HashMap<u64, egui::TextureHandle>,
     pub avatars_loading: bool,
     
-    // Game icon URLs (universe_id -> icon_url)
     pub game_icons: std::collections::HashMap<u64, String>,
     pub game_icons_loaded: bool,
     
-    // Startup state and periodic refresh
     pub startup_fetch_done: bool,
     pub last_presence_refresh: std::time::Instant,
     
-    // Browser login session
     pub browser_login_session: Option<crate::auth::WebLoginSession>,
     
-    // Cookie management modal
     pub cookie_modal_account_idx: Option<usize>,
     pub cookie_modal_value: String,
     pub cookie_modal_show: bool,
     
-    // Follow user modal
     pub follow_user_show: bool,
     pub follow_user_target: String,
     pub follow_user_account_idx: Option<usize>,
     
-    // Drag & drop state
     pub drag_drop_active: bool,
     
-    // Add user game state
     pub add_user_game_place_id: String,
     pub add_user_game_name: String,
     pub add_user_game_show: bool,
     
-    // Tray minimize state
     pub minimized_to_tray: bool,
 }
 
@@ -181,6 +191,8 @@ impl NexusApp {
             status_error: false,
             action: Action::None,
             game_search: String::new(),
+            account_search: String::new(),
+            account_sort: AccountSort::Default,
             multi_instance,
             batch_selected: HashSet::new(),
             batch_launching: false,
@@ -216,25 +228,73 @@ impl NexusApp {
         self.status_error = is_error;
     }
 
-    pub fn render_tab_button(&mut self, ui: &mut egui::Ui, tab: Tab, label: &str) {
+    pub fn render_sidebar_button(&mut self, ui: &mut egui::Ui, tab: Tab, icon: &str, label: &str) {
         let is_active = self.tab == tab;
+        let avail_width = ui.available_width();
+        let btn_height = 34.0;
         
-        let btn = egui::Button::new(
-            RichText::new(label)
-                .size(13.0)
-                .color(if is_active { Colors::TEXT_PRIMARY } else { Colors::TEXT_MUTED })
-        )
-        .fill(if is_active { Colors::BG_CARD_SELECTED } else { egui::Color32::TRANSPARENT })
-        .stroke(if is_active { 
-            egui::Stroke::new(1.0, Colors::BORDER_ACCENT) 
-        } else { 
-            egui::Stroke::NONE 
-        })
-        .rounding(egui::Rounding::same(6.0));
+        let (rect, response) = ui.allocate_exact_size(
+            egui::vec2(avail_width, btn_height),
+            egui::Sense::click(),
+        );
         
-        if ui.add(btn).clicked() {
+        if response.clicked() {
             self.tab = tab;
         }
+        
+        if ui.is_rect_visible(rect) {
+            let painter = ui.painter();
+            
+            if is_active {
+                let bar_rect = egui::Rect::from_min_size(
+                    rect.left_top(),
+                    egui::vec2(3.0, btn_height),
+                );
+                painter.rect_filled(bar_rect, egui::Rounding::same(1.5), Colors::ACCENT_BLUE);
+            }
+            
+            let btn_rect = egui::Rect::from_min_max(
+                egui::pos2(rect.left() + 6.0, rect.top() + 1.0),
+                egui::pos2(rect.right() - 6.0, rect.bottom() - 1.0),
+            );
+            let bg = if is_active {
+                Colors::NAV_ACTIVE
+            } else if response.hovered() {
+                Colors::BG_LIGHT
+            } else {
+                egui::Color32::TRANSPARENT
+            };
+            
+            if bg != egui::Color32::TRANSPARENT {
+                painter.rect_filled(btn_rect, egui::Rounding::same(6.0), bg);
+            }
+            
+            let icon_color = if is_active { Colors::ACCENT_BLUE_BRIGHT } else if response.hovered() { Colors::TEXT_PRIMARY } else { Colors::TEXT_MUTED };
+            let icon_galley = painter.layout_no_wrap(
+                icon.to_string(),
+                egui::FontId::proportional(14.0),
+                icon_color,
+            );
+            painter.galley(
+                egui::pos2(btn_rect.left() + 12.0, rect.center().y - icon_galley.size().y / 2.0),
+                icon_galley,
+                icon_color,
+            );
+            
+            let label_color = if is_active { Colors::TEXT_PRIMARY } else if response.hovered() { Colors::TEXT_PRIMARY } else { Colors::TEXT_SECONDARY };
+            let label_galley = painter.layout_no_wrap(
+                label.to_string(),
+                egui::FontId::proportional(12.5),
+                label_color,
+            );
+            painter.galley(
+                egui::pos2(btn_rect.left() + 32.0, rect.center().y - label_galley.size().y / 2.0),
+                label_galley,
+                label_color,
+            );
+        }
+        
+        ui.add_space(2.0);
     }
 
     pub fn process_action(&mut self) {
@@ -249,7 +309,6 @@ impl NexusApp {
             }
             
             Action::VerifyAccount(idx) => {
-                // Get data we need first
                 let account_data = self.data.accounts.get(idx).map(|a| {
                     (a.username.clone(), a.cookie.clone())
                 });
@@ -435,8 +494,7 @@ impl NexusApp {
                                 account.last_info_fetch = Some(chrono::Local::now().format("%Y-%m-%d %H:%M").to_string());
                             }
                             
-                            // Also fetch collectibles count
-                            if let Ok(collectibles) = RobloxApi::get_inventory_info(user_id) {
+                    if let Ok(collectibles) = RobloxApi::get_inventory_info(user_id) {
                                 if let Some(account) = self.data.accounts.get_mut(idx) {
                                     account.collectibles_count = Some(collectibles);
                                 }
@@ -460,7 +518,6 @@ impl NexusApp {
                     return;
                 }
                 
-                // Enable multi-instance if not already
                 if !self.multi_instance.is_enabled() {
                     if self.multi_instance.enable().is_err() {
                         self.set_status("Failed to enable multi-instance for batch launch", true);
@@ -477,7 +534,6 @@ impl NexusApp {
                 
                 let indices: Vec<usize> = self.batch_selected.iter().copied().collect();
                 
-                // Clone the data we need to avoid borrow conflicts
                 let accounts_data: Vec<_> = indices.iter()
                     .filter_map(|idx| self.data.accounts.get(*idx).map(|a| (a.username.clone(), a.cookie.clone())))
                     .collect();
@@ -542,7 +598,6 @@ impl NexusApp {
             }
             
             Action::RefreshPresence => {
-                // Collect user IDs for valid accounts
                 let user_ids: Vec<u64> = self.data.accounts.iter()
                     .filter_map(|a| {
                         if a.status == AccountStatus::Valid {
@@ -563,7 +618,6 @@ impl NexusApp {
                 match RobloxApi::get_presence(&user_ids) {
                     Ok(presences) => {
                         let mut updated = 0;
-                        // Track place IDs we need to look up game names for
                         let mut place_ids_to_lookup: std::collections::HashMap<u64, Vec<usize>> = std::collections::HashMap::new();
                         
                         for (idx, account) in self.data.accounts.iter_mut().enumerate() {
@@ -609,7 +663,6 @@ impl NexusApp {
             }
             
             Action::FetchAvatars => {
-                // Collect user IDs for all accounts with user_id
                 let user_ids: Vec<u64> = self.data.accounts.iter()
                     .filter_map(|a| a.user_id)
                     .collect();
@@ -626,7 +679,6 @@ impl NexusApp {
                     Ok(avatars) => {
                         let mut loaded = 0;
                         
-                        // Store avatar URLs in accounts
                         for account in self.data.accounts.iter_mut() {
                             if let Some(user_id) = account.user_id {
                                 if let Some(url) = avatars.get(&user_id) {
@@ -639,9 +691,6 @@ impl NexusApp {
                         self.data.save();
                         self.avatars_loading = false;
                         self.set_status(format!(" Fetched {} avatar URLs - loading images...", loaded), false);
-                        
-                        // Note: The actual texture loading will happen when rendering
-                        // We'll need to load images asynchronously
                     }
                     Err(e) => {
                         self.avatars_loading = false;
@@ -650,7 +699,6 @@ impl NexusApp {
                 }
             }
             
-            // Server Browser Actions
             Action::FetchServers => {
                 if self.place_id.is_empty() {
                     self.set_status("Select a game first (Games tab)", true);
@@ -661,13 +709,11 @@ impl NexusApp {
                 self.server_browser.clear();
                 self.server_browser.current_place_id = Some(self.place_id.clone());
                 
-                // Fetch the game name for display
-                match RobloxApi::get_game_info(&self.place_id) {
+                    match RobloxApi::get_game_info(&self.place_id) {
                     Ok((game_name, _)) => {
                         self.server_browser.current_game_name = Some(game_name);
                     }
                     Err(_) => {
-                        // Silently continue without game name - not critical
                     }
                 }
                 
@@ -718,7 +764,6 @@ impl NexusApp {
                     return;
                 }
                 
-                // Need account cookie for VIP server fetch
                 let cookie = self.selected
                     .and_then(|idx| self.data.accounts.get(idx))
                     .and_then(|a| a.cookie.clone());
@@ -847,7 +892,6 @@ impl NexusApp {
                             if let Some(server) = server {
                                 let multi = self.multi_instance.is_enabled();
                                 
-                                // Check if it's a VIP server
                                 if server.is_vip() {
                                     if let Some(access_code) = &server.access_code {
                                         self.set_status(format!("⏳ Joining VIP server as {} - please wait...", username), false);
@@ -861,7 +905,6 @@ impl NexusApp {
                                             Err(e) => self.set_status(format!("Launch failed: {}", e), true),
                                         }
                                     } else {
-                                        // Show modal to enter access code
                                         self.server_browser.vip_access_code_input.clear();
                                         self.server_browser.vip_access_code_show = true;
                                         self.server_browser.vip_pending_server_idx = self.server_browser.selected_server;
@@ -869,7 +912,6 @@ impl NexusApp {
                                         self.set_status("Enter VIP server access code to join", false);
                                     }
                                 } else {
-                                    // Public server - use job ID
                                     self.set_status(format!("⏳ Joining server as {} - please wait...", username), false);
                                     
                                     match RobloxApi::launch_with_job_id(&cookie, Some(place_id), Some(&server.id), multi) {
@@ -942,7 +984,6 @@ impl NexusApp {
                 
                 if let Some((username, cookie_opt)) = account_data {
                     if let Some(cookie) = cookie_opt {
-                        // Parse the private server link
                         if let Some(parsed) = crate::api::PrivateServerLink::parse(&input) {
                             let place_id = if parsed.place_id > 0 {
                                 parsed.place_id.to_string()
@@ -957,7 +998,6 @@ impl NexusApp {
                             
                             let multi = self.multi_instance.is_enabled();
                             
-                            // If we have a link code, try to get access code first
                             if !parsed.link_code.is_empty() {
                                 match crate::api::get_access_code_from_link(&cookie, &place_id, &parsed.link_code) {
                                     Ok(access_code) => {
@@ -971,7 +1011,6 @@ impl NexusApp {
                                         }
                                     }
                                     Err(e) => {
-                                        // Try direct launch with link code as access code
                                         match RobloxApi::launch_to_private_server(&cookie, &place_id, &parsed.link_code, None, multi) {
                                             Ok(_) => {
                                                 self.add_recent_game(&place_id);
@@ -983,7 +1022,6 @@ impl NexusApp {
                                     }
                                 }
                             } else if let Some(access_code) = parsed.access_code {
-                                // Direct access code
                                 match RobloxApi::launch_to_private_server(&cookie, &place_id, &access_code, None, multi) {
                                     Ok(_) => {
                                         self.add_recent_game(&place_id);
@@ -1002,7 +1040,6 @@ impl NexusApp {
                 }
             }
             
-            // Account Utilities Actions
             Action::LogoutOtherSessions(idx) => {
                 let account_data = self.data.accounts.get(idx).map(|a| {
                     (a.username.clone(), a.cookie.clone())
@@ -1014,7 +1051,6 @@ impl NexusApp {
                         
                         match RobloxApi::logout_other_sessions(&cookie) {
                             Ok(new_cookie) => {
-                                // Update cookie if we got a new one
                                 if !new_cookie.is_empty() {
                                     if let Some(account) = self.data.accounts.get_mut(idx) {
                                         account.cookie = Some(new_cookie);
@@ -1047,7 +1083,6 @@ impl NexusApp {
                         
                         match RobloxApi::change_password(&cookie, &current_pass, &new_pass) {
                             Ok(new_cookie) => {
-                                // Update password and cookie
                                 if let Some(account) = self.data.accounts.get_mut(idx) {
                                     account.password = new_pass;
                                     if !new_cookie.is_empty() {
@@ -1082,7 +1117,6 @@ impl NexusApp {
                         
                         match RobloxApi::set_display_name(&cookie, user_id, &new_name) {
                             Ok(_) => {
-                                // Update display name
                                 if let Some(account) = self.data.accounts.get_mut(idx) {
                                     account.display_name = Some(new_name);
                                 }
@@ -1680,9 +1714,10 @@ impl NexusApp {
     }
     
     pub fn render_settings_tab(&mut self, ui: &mut egui::Ui) {
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 12.0;
             ui.heading(RichText::new("⚙ Settings").size(20.0).color(Colors::TEXT_PRIMARY));
-            ui.add_space(16.0);
+            ui.add_space(8.0);
             
             // Multi-Instance Section
             egui::Frame::none()
@@ -1915,7 +1950,7 @@ impl NexusApp {
             .rounding(egui::Rounding::same(8.0));
             
             if ui.add_sized([180.0, 44.0], discord_btn).clicked() {
-                let _ = webbrowser::open("https://discord.gg/U8ehekqN64");
+                let _ = webbrowser::open("https://tr.ee/NexusD");
             }
         });
     }
