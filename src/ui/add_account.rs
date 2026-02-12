@@ -1,5 +1,3 @@
-// Add account tab
-
 use eframe::egui::{self, RichText, Color32};
 use crate::theme::Colors;
 use super::{Action, NexusApp};
@@ -16,7 +14,6 @@ impl NexusApp {
                     
                     ui.add_space(32.0);
                     
-                    // Header
                     ui.label(RichText::new("Add Account")
                         .color(Colors::TEXT_PRIMARY)
                         .size(28.0)
@@ -32,7 +29,6 @@ impl NexusApp {
                     
                     ui.add_space(16.0);
                     
-                    // Divider
                     self.render_divider(ui, card_width);
                     
                     ui.add_space(16.0);
@@ -40,8 +36,6 @@ impl NexusApp {
                     self.render_cookie_import_card(ui, card_width);
                     
                     ui.add_space(24.0);
-                    
-                    // Security notice
                     self.render_security_notice(ui, card_width);
                     
                     ui.add_space(32.0);
@@ -71,9 +65,7 @@ impl NexusApp {
                     .show(ui, |ui| {
                         ui.set_min_width(width - 44.0);
                         
-                        // Header row
                         ui.horizontal(|ui| {
-                            // Icon
                             egui::Frame::none()
                                 .fill(Colors::ACCENT_BLUE.linear_multiply(0.2))
                                 .rounding(egui::Rounding::same(8.0))
@@ -91,7 +83,6 @@ impl NexusApp {
                                         .size(17.0)
                                         .strong());
                                     ui.add_space(8.0);
-                                    // Recommended badge
                                     egui::Frame::none()
                                         .fill(Colors::ACCENT_GREEN.linear_multiply(0.2))
                                         .rounding(egui::Rounding::same(4.0))
@@ -111,7 +102,6 @@ impl NexusApp {
                         
                         ui.add_space(16.0);
                         
-                        // Description
                         ui.label(RichText::new(
                             "Opens a secure browser window where you can log in to Roblox normally. \
                             Nexus will automatically detect your login and import your account.")
@@ -120,9 +110,7 @@ impl NexusApp {
                         
                         ui.add_space(16.0);
                         
-                        // Action area
                         if is_active {
-                            // Active session UI
                             egui::Frame::none()
                                 .fill(Colors::BG_DARK)
                                 .rounding(egui::Rounding::same(8.0))
@@ -162,7 +150,6 @@ impl NexusApp {
                                 }
                             });
                         } else {
-                            // Start button
                             let btn = egui::Button::new(
                                 RichText::new("🔓  Open Browser Login")
                                     .size(15.0)
@@ -194,7 +181,6 @@ impl NexusApp {
                     .show(ui, |ui| {
                         ui.set_min_width(width - 44.0);
                         
-                        // Header row
                         ui.horizontal(|ui| {
                             egui::Frame::none()
                                 .fill(Colors::ACCENT_YELLOW.linear_multiply(0.15))
@@ -232,7 +218,6 @@ impl NexusApp {
                         
                         ui.add_space(16.0);
                         
-                        // Find cookies button
                         let find_btn = egui::Button::new(
                             RichText::new("🔍 Find Cookies on System")
                                 .size(13.0)
@@ -246,7 +231,6 @@ impl NexusApp {
                             self.action = Action::FindCookies;
                         }
                         
-                        // Show found cookies if any
                         if !self.found_cookies.is_empty() {
                             ui.add_space(12.0);
                             
@@ -257,7 +241,6 @@ impl NexusApp {
                             
                             ui.add_space(8.0);
                             
-                            // Clone cookies to avoid borrow issues
                             let cookies: Vec<_> = self.found_cookies.iter()
                                 .map(|c| (c.cookie.clone(), c.source.clone()))
                                 .collect();
@@ -271,7 +254,6 @@ impl NexusApp {
                                     .rounding(egui::Rounding::same(6.0))
                                     .inner_margin(egui::Margin::same(10.0))
                                     .show(ui, |ui| {
-                                        // Source header
                                         ui.horizontal(|ui| {
                                             let source_icon = match source.as_str() {
                                                 "Windows Registry" => "🪟",
@@ -290,7 +272,6 @@ impl NexusApp {
                                         
                                         ui.add_space(6.0);
                                         
-                                        // Cookie preview (truncated)
                                         let preview = if cookie.len() > 60 {
                                             format!("{}...{}", &cookie[..30], &cookie[cookie.len()-20..])
                                         } else {
@@ -304,9 +285,7 @@ impl NexusApp {
                                         
                                         ui.add_space(8.0);
                                         
-                                        // Action buttons
                                         ui.horizontal(|ui| {
-                                            // Use this cookie button
                                             let use_btn = egui::Button::new(
                                                 RichText::new("Use This")
                                                     .size(11.0)
@@ -322,7 +301,6 @@ impl NexusApp {
                                             
                                             ui.add_space(6.0);
                                             
-                                            // Copy button
                                             let copy_btn = egui::Button::new(
                                                 RichText::new("📋 Copy")
                                                     .size(11.0)
@@ -351,19 +329,16 @@ impl NexusApp {
                         
                         ui.add_space(14.0);
                         
-                        // Separator
                         ui.separator();
                         
                         ui.add_space(10.0);
                         
-                        // Manual cookie input label
                         ui.label(RichText::new("Or paste cookie manually:")
                             .color(Colors::TEXT_SECONDARY)
                             .size(11.0));
                         
                         ui.add_space(6.0);
                         
-                        // Cookie input
                         egui::Frame::none()
                             .fill(Colors::BG_DARK)
                             .stroke(egui::Stroke::new(1.0, Colors::BORDER_DARK))
@@ -382,7 +357,6 @@ impl NexusApp {
                         
                         ui.add_space(14.0);
                         
-                        // Import button
                         let import_btn = egui::Button::new(
                             RichText::new("Import & Add Account")
                                 .size(14.0)
